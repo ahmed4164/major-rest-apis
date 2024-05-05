@@ -7,12 +7,14 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const cors = require('cors')
 
 
 dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+app.use(cors())
 app.use(express.json());
 
 app.listen(port, () => {
