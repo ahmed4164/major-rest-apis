@@ -33,7 +33,7 @@ const transporter = nodemailer.createTransport({
 
 // Function to send invitation email
 async function sendInvitationEmail(studentEmail, invitationLink) {
-    console.log('@@',studentEmail)
+    console.log('@@', studentEmail)
     try {
         await transporter.sendMail({
             from: 'iamahmedfaiyaz@gmail.com',
@@ -93,12 +93,22 @@ app.post('/register/teacher', async (req, res) => {
             createdAt: new Date()
         });
         const result = await teacher.save();
-        res.status(201).send(`Teacher registered with ID: ${result._id}`);
+        res.status(201).json({
+            isSuccess: true,
+            teacherId: result._id,
+            type: 'teacher'
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).send('Internal Server Error');
+        // res.status(500).send('Internal Server Error');
+        res.status(500).json({
+            isSuccess: false,
+            message: 'Internal Server Error',
+            type: 'teacher'
+        });
     }
 });
+
 
 // Endpoint for student login
 app.post('/login', async (req, res) => {
@@ -153,10 +163,18 @@ app.post('/teacher/login', async (req, res) => {
         const token = jwt.sign({ id: teacher._id, email: teacher.email }, secretKey, { expiresIn: '1h' });
 
         // Send the token in the response
-        res.status(200).json({ token });
+        res.status(200).json({ 
+            token,
+            isSuccess: true,
+            type:'teacher'
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
+        res.status(500).json({ 
+            message: 'Internal Server Error',
+            isSuccess: false,
+            type:'teacher'
+         });
     }
 });
 // // Endpoint for a teacher to create a classroom and invite students
