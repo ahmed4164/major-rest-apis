@@ -298,10 +298,36 @@ app.get('/classrooms', async (req, res) => {
     }
 });
 
-// Endpoint to get a list of classrooms for a specific student
-app.get('/student/classrooms/:studentId', async (req, res) => {
+// Endpoint to get classrooms associated with a particular teacher
+app.post('/teacher/classrooms', async (req, res) => {
     try {
-        const studentId = req.params.studentId;
+        const { teacherId } = req.body;
+
+        // Validate teacherId
+        if (!mongoose.Types.ObjectId.isValid(teacherId)) {
+            return res.status(400).send('Invalid teacher ID');
+        }
+
+        // Find classrooms where the teacher is assigned
+        const classrooms = await Classroom.find({ 'teacher': teacherId })
+            .populate('teacher', 'name email')
+            .populate('students', 'name email');
+
+        res.status(200).json({
+            isSuccess: true,
+            classrooms
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+
+// Endpoint to get a list of classrooms for a specific student
+app.post('/student/classrooms', async (req, res) => {
+    try {
+        const { studentId } = req.body;
 
         // Validate studentId
         if (!mongoose.Types.ObjectId.isValid(studentId)) {
@@ -313,7 +339,10 @@ app.get('/student/classrooms/:studentId', async (req, res) => {
             .populate('teacher', 'name email')
             .populate('students', 'name email');
 
-        res.status(200).json(classrooms);
+        res.status(200).json({
+            isSuccess: true,
+            classrooms
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Internal Server Error');
