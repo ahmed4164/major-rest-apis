@@ -288,7 +288,10 @@ app.post('/classroom/addStudent', async (req, res) => {
 app.get('/classrooms', async (req, res) => {
     try {
         const classrooms = await Classroom.find().populate('teacher', 'name email').populate('students', 'name email');
-        res.status(200).json(classrooms);
+        res.status(200).json({
+            isSuccess: true,
+            classrooms
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Internal Server Error');
