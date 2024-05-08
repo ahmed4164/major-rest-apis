@@ -133,7 +133,11 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign({ id: student._id, email: student.email }, secretKey, { expiresIn: '1h' });
 
         // Send the token in the response
-        res.status(200).json({ token });
+        res.status(200).json({ 
+            token,
+            isSuccess: true,
+            type:'teacher'
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal Server Error' });
