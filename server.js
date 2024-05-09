@@ -169,6 +169,7 @@ app.post('/teacher/login', async (req, res) => {
         // Send the token in the response
         res.status(200).json({ 
             token,
+            teacherid: teacher._id, 
             isSuccess: true,
             type:'teacher'
         });
