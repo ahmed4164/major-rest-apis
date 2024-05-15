@@ -60,125 +60,292 @@ const Student = db.Student;
 const Teacher = db.Teacher;
 const Classroom = db.Classroom;
 
-// Registration endpoint for students
-app.post('/register/student', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const student = new Student({
-            name,
-            email,
-            password: hashedPassword,
-            createdAt: new Date()
-        });
-        const result = await student.save();
-        res.status(201).send(`Student registered with ID: ${result._id}`);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Internal Server Error');
-    }
-});
+// // Registration endpoint for students
+// app.post('/register/student', async (req, res) => {
+//     try {
+//         const { name, email, password } = req.body;
+//         // Hash password
+//         const hashedPassword = await bcrypt.hash(password, 10);
+//         const student = new Student({
+//             name,
+//             email,
+//             password: hashedPassword,
+//             createdAt: new Date()
+//         });
+//         const result = await student.save();
+//         res.status(201).send(`Student registered with ID: ${result._id}`);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).send('Internal Server Error');
+//     }
+// });
 
-// Registration endpoint for teachers
-app.post('/register/teacher', async (req, res) => {
+// // Registration endpoint for teachers
+// app.post('/register/teacher', async (req, res) => {
+//     try {
+//         const { name, email, password } = req.body;
+//         // Hash password
+//         const hashedPassword = await bcrypt.hash(password, 10);
+//         const teacher = new Teacher({
+//             name,
+//             email,
+//             password: hashedPassword,
+//             createdAt: new Date()
+//         });
+//         const result = await teacher.save();
+//         res.status(201).json({
+//             isSuccess: true,
+//             teacherId: result._id,
+//             type: 'teacher'
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         // res.status(500).send('Internal Server Error');
+//         res.status(500).json({
+//             isSuccess: false,
+//             message: 'Internal Server Error',
+//             type: 'teacher'
+//         });
+//     }
+// });
+
+app.post('/register', async(req, res)=>{
     try {
-        const { name, email, password } = req.body;
-        // Hash password
+        const { name, email, password, type } = req.body;
+        if (!name || !email || !password || !type) {
+            return res.status(400).json({
+                isSuccess: false,
+                message: 'Name, email, password, and type are required',
+            });
+        }
         const hashedPassword = await bcrypt.hash(password, 10);
-        const teacher = new Teacher({
-            name,
-            email,
-            password: hashedPassword,
-            createdAt: new Date()
-        });
-        const result = await teacher.save();
-        res.status(201).json({
-            isSuccess: true,
-            teacherId: result._id,
-            type: 'teacher'
-        });
+        let user, result;
+        if (type === 'student') {
+            user = new Student({
+                name,
+                email,
+                password: hashedPassword,
+                createdAt: new Date()
+            });
+            result = await user.save();
+            res.status(201).json({
+                isSuccess: true,
+                studentId: result._id,
+                type: 'student'
+            });
+        } else if (type === 'teacher') {
+            user = new Teacher({
+                name,
+                email,
+                password: hashedPassword,
+                createdAt: new Date()
+            });
+            result = await user.save();
+            res.status(201).json({
+                isSuccess: true,
+                teacherId: result._id,
+                type: 'teacher'
+            });
+        } else {
+            res.status(400).json({
+                isSuccess: false,
+                message: 'Invalid type provided',
+            });
+        }
     } catch (error) {
         console.error(error);
-        // res.status(500).send('Internal Server Error');
         res.status(500).json({
             isSuccess: false,
             message: 'Internal Server Error',
-            type: 'teacher'
         });
     }
-});
+
+})
 
 
-// Endpoint for student login
+// // Endpoint for student login
+// app.post('/login', async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+
+//         // Find the student by email
+//         const student = await Student.findOne({ email });
+//         if (!student) {
+//             return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+
+//         // Verify the password
+//         const isPasswordValid = await bcrypt.compare(password, student.password);
+//         if (!isPasswordValid) {
+//             return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+
+//         // Generate JWT token
+//         const secretKey = crypto.randomBytes(32).toString('hex');
+//         console.log(secretKey);
+//         const token = jwt.sign({ id: student._id, email: student.email }, secretKey, { expiresIn: '1h' });
+
+//         // Send the token in the response
+//         res.status(200).json({ 
+//             token,
+//             isSuccess: true,
+//             type:'teacher'
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ message: 'Internal Server Error' });
+//     }
+// });
+
+// // Endpoint for teacher login
+// app.post('/teacher/login', async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+
+//         // Find the teacher by email
+//         const teacher = await Teacher.findOne({ email });
+//         if (!teacher) {
+//             return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+
+//         // Verify the password
+//         const isPasswordValid = await bcrypt.compare(password, teacher.password);
+//         if (!isPasswordValid) {
+//             return res.status(401).json({ message: 'Invalid email or password' });
+//         }
+
+//         // Generate JWT token
+//         const secretKey = crypto.randomBytes(32).toString('hex');
+//         console.log(secretKey);
+//         const token = jwt.sign({ id: teacher._id, email: teacher.email }, secretKey, { expiresIn: '1h' });
+
+//         // Send the token in the response
+//         res.status(200).json({ 
+//             token,
+//             teacherid: teacher._id, 
+//             isSuccess: true,
+//             type:'teacher'
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ 
+//             message: 'Internal Server Error',
+//             isSuccess: false,
+//             type:'teacher'
+//          });
+//     }
+// });
+
+// Unified login endpoint
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        let stuuser;
+        let teauser;
 
-        // Find the student by email
-        const student = await Student.findOne({ email });
-        if (!student) {
+        // Check if the user is a student
+        stuuser = await Student.findOne({ email });
+        // Check if the user is a teacher
+        teauser = await Teacher.findOne({ email });
+
+        // If neither a student nor a teacher found, return error
+        if (!stuuser && !teauser) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
-        // Verify the password
-        const isPasswordValid = await bcrypt.compare(password, student.password);
+        // Verify the password based on the user type
+        let user;
+        if (stuuser) {
+            user = stuuser;
+        } else if (teauser) {
+            user = teauser;
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Generate JWT token
         const secretKey = crypto.randomBytes(32).toString('hex');
-        console.log(secretKey);
-        const token = jwt.sign({ id: student._id, email: student.email }, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id, email: user.email }, secretKey, { expiresIn: '1h' });
 
-        // Send the token in the response
-        res.status(200).json({ 
-            token,
-            isSuccess: true,
-            type:'teacher'
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Internal Server Error' });
-    }
-});
-
-// Endpoint for teacher login
-app.post('/teacher/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // Find the teacher by email
-        const teacher = await Teacher.findOne({ email });
-        if (!teacher) {
-            return res.status(401).json({ message: 'Invalid email or password' });
+        // Determine user type
+        let type;
+        if (stuuser && teauser) {
+            type = 'both';
+        } else if (stuuser) {
+            type = 'student';
+        } else if (teauser) {
+            type = 'teacher';
         }
 
-        // Verify the password
-        const isPasswordValid = await bcrypt.compare(password, teacher.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid email or password' });
-        }
-
-        // Generate JWT token
-        const secretKey = crypto.randomBytes(32).toString('hex');
-        console.log(secretKey);
-        const token = jwt.sign({ id: teacher._id, email: teacher.email }, secretKey, { expiresIn: '1h' });
-
-        // Send the token in the response
+        // Send response with user type
         res.status(200).json({ 
             token,
-            teacherid: teacher._id, 
+            userId: user._id, 
             isSuccess: true,
-            type:'teacher'
+            type // Indicate the user type in the response
         });
     } catch (error) {
         console.error(error);
         res.status(500).json({ 
             message: 'Internal Server Error',
-            isSuccess: false,
-            type:'teacher'
+            isSuccess: false
+         });
+    }
+});
+
+
+
+app.post('/login/type', async (req, res) => {
+    try {
+        const { type, email } = req.body;
+        // const email = req.user.email; 
+
+        let user;
+        user = await Student.findOne({ email });
+        if (!user && type === 'student') {
+            return res.status(404).json({ message: 'User not found or not a student' });
+        }
+
+        user = await Teacher.findOne({ email });
+        if (!user && type === 'teacher') {
+            return res.status(404).json({ message: 'User not found or not a teacher' });
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        console.log('@@user',user)
+        const secretKey = crypto.randomBytes(32).toString('hex');
+        const token = jwt.sign({ id: user._id, email: user.email }, secretKey, { expiresIn: '1h' });
+        let newData;
+
+        if (type === 'student') {
+            newData = {
+                token,
+                studentId: user._id, 
+                isSuccess: true,
+                type: type,
+                message: `Login selected as ${type}`,
+            };
+        } else if (type === 'teacher') {
+            newData = {
+                token,
+                teacherId: user._id, 
+                isSuccess: true,
+                type: type,
+                message: `Login selected as ${type}`,
+            };
+        }
+
+        res.status(200).json(newData); // Send the updated data to the frontend
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ 
+            message: 'Internal Server Error',
+            isSuccess: false
          });
     }
 });
