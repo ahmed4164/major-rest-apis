@@ -403,10 +403,16 @@ app.post('/classroom', async (req, res) => {
             }
         }
 
-        res.status(201).send(`Classroom created. Invitation emails sent to students.`);
+        res.status(201).json({ 
+            message: 'classroom created successfully',
+            isSuccess: true
+         });
     } catch (error) {
         console.error(error);
-        res.status(500).send('Internal Server Error');
+        res.status(500).json({ 
+            message: 'Internal Server Error',
+            isSuccess: true
+         })
     }
 });
 
