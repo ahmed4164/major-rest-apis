@@ -380,11 +380,14 @@ app.post('/login/type', async (req, res) => {
 // Endpoint for a teacher to create a classroom and generate an invitation link
 app.post('/classroom', async (req, res) => {
     try {
+        // Ensure req.body.studentIds is an array or default to an empty array
+        const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds : [];
+
         // Create classroom
         const classroom = new Classroom({
             name: req.body.name,
             teacher: req.body.teacherId,
-            students: req.body.studentIds,
+            students: studentIds,
             createdAt: new Date()
         });
         const result = await classroom.save();
@@ -393,7 +396,7 @@ app.post('/classroom', async (req, res) => {
         const invitationLink = generateUniqueLink(result._id);
 
         // Send invitation email to each student
-        for (const studentId of req.body.studentIds) {
+        for (const studentId of studentIds) {
             const student = await Student.findById(studentId);
             if (student) {
                 sendInvitationEmail(student.email, invitationLink);
@@ -406,6 +409,7 @@ app.post('/classroom', async (req, res) => {
         res.status(500).send('Internal Server Error');
     }
 });
+
 
 // Endpoint to get a list of all students
 app.get('/students', async (req, res) => {
