@@ -27,23 +27,93 @@ const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'iamahmedfaiyaz@gmail.com',
-        pass: 'Fazal4164@'
+        pass: 'duad frda xdke cplx'
     }
 });
 
 // Function to send invitation email
-async function sendInvitationEmail(studentEmail, invitationLink) {
-    console.log('@@', studentEmail)
+async function sendInvitationEmail(studentEmail, invitationLink, student) {
+    console.log('@@', studentEmail);
+    console.log('@@', student);
     try {
         await transporter.sendMail({
             from: 'iamahmedfaiyaz@gmail.com',
-            // to: studentEmail,
-            to: 'ahmed.docx@gmail.com',
+            to: student.email,
             subject: 'Invitation to Join Classroom',
-            text: `Dear Student,\n\nYou have been invited to join a classroom. Please click on the following link to join:\n\n${invitationLink}\n\nRegards,\nYour School`
+            html: `
+                <html>
+                <head>
+                    <title>Invitation to Join Classroom</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            background-color: #161616;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .container {
+                            max-width: 600px;
+                            margin: 20px auto;
+                            padding: 20px;
+                            background-color: #161616;
+                            border-radius: 10px;
+                            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+                            border: 3px solid #282828;
+                        }
+                        .header {
+                            background-color: #161616;
+                            color: #ffffff;
+                            padding: 20px;
+                            text-align: center;
+                            border-top-left-radius: 10px;
+                            border-top-right-radius: 10px;
+                            border-bottom: 2px solid #282828;
+                        }
+                        .content {
+                            padding: 40px;
+                            text-align: center;
+                            color: #ffffff;
+                        }
+                        .button {
+                            display: inline-block;
+                            background-color: #007bff;
+                            color: white;
+                            padding: 15px 30px;
+                            border-radius: 5px;
+                            text-decoration: none;
+                            font-weight: bold;
+                        }
+                        .footer {
+                            background-color: #161616;
+                            color: #ffffff;
+                            padding: 20px;
+                            text-align: center;
+                            border-bottom-left-radius: 10px;
+                            border-bottom-right-radius: 10px;
+                            border-top: 2px solid #282828
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>Invitation to Join Classroom</h1>
+                        </div>
+                        <div class="content">
+                            <p>Dear ${student.name},</p>
+                            <p>You have been invited to join a classroom.</p>
+                            <p>Please click on the button below to join:</p>
+                            <a class="button" href="${invitationLink}">Join Classroom</a>
+                        </div>
+                        <div class="footer">
+                            <p>Regards,<br>Your School</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `
         });
-        // console.log(`Invitation email sent to ${studentEmail}`);
-        console.log(`Invitation email sent to ahmed.docx@gmail.com`);
+        console.log(`Invitation email sent to ${studentEmail}`);
     } catch (error) {
         console.error(`Error sending invitation email to ${studentEmail}:`, error);
     }
@@ -399,7 +469,7 @@ app.post('/classroom', async (req, res) => {
         for (const studentId of studentIds) {
             const student = await Student.findById(studentId);
             if (student) {
-                sendInvitationEmail(student.email, invitationLink);
+                sendInvitationEmail(student.email, invitationLink,student);
             }
         }
 
@@ -505,6 +575,30 @@ app.post('/teacher/classrooms', async (req, res) => {
     }
 });
 
+app.post('/classroom/details', async (req, res) => {
+    try {
+        const { classroomId } = req.body;
+
+        // Validate classroomId
+        if (!mongoose.Types.ObjectId.isValid(classroomId)) {
+            return res.status(400).send('Invalid classroom ID');
+        }
+
+        // Find the classroom by ID
+        const classroom = await Classroom.findById(classroomId)
+            .populate('teacher', 'name email')
+            .populate('students', 'name email');
+
+        if (!classroom) {
+            return res.status(404).json({ isSuccess: false, message: 'Classroom not found' });
+        }
+
+        res.status(200).json({ isSuccess: true, classroom });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+});
 
 // Endpoint to get a list of classrooms for a specific student
 app.post('/student/classrooms', async (req, res) => {
