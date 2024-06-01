@@ -20,28 +20,34 @@ const studentSchema = new mongoose.Schema({
     name: String,
     email: {
         type: String,
-        unique: true // Ensure uniqueness of email
+        unique: true 
     },
     password: String,
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    collegecode: Number,
+    collegename: String,
+    branch: String,
+    section: String,
+    year: Number
 });
 
 const teacherSchema = new mongoose.Schema({
     name: String,
     email: {
         type: String,
-        unique: true // Ensure uniqueness of email
+        unique: true 
     },
     password: String,
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    collegecode: Number,
+    collegename: String,
 });
-
 const classroomSchema = new mongoose.Schema({
     name: String,
     teacher: {
@@ -55,20 +61,29 @@ const classroomSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
 });
 
-// Create models based on schemas
+const invitationSchema = new mongoose.Schema({
+    classroom: { type: mongoose.Schema.Types.ObjectId, ref: 'Classroom', required: true },
+    student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
+    token: { type: String, required: true, unique: true },
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, required: true }
+});
+
+
 const Student = mongoose.model('Student', studentSchema);
 const Teacher = mongoose.model('Teacher', teacherSchema);
 const Classroom = mongoose.model('Classroom', classroomSchema);
+const Invitation = mongoose.model('Invitation', invitationSchema);
 
-// Ensure collections are created if they don't exist
 async function createCollections() {
     try {
         await Student.createCollection();
         await Teacher.createCollection();
         await Classroom.createCollection();
+        await Invitation.createCollection();
         console.log('Collections created successfully');
     } catch (error) {
         console.error('Error creating collections:', error);
@@ -78,4 +93,4 @@ const get = () => {
     return db;
 }
 
-module.exports = { connect, get, Student, Teacher, Classroom };
+module.exports = { connect, get, Student, Teacher, Classroom, Invitation };
