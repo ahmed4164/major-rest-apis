@@ -8,7 +8,11 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const cors = require('cors')
-
+const axios = require('axios');
+const OpenAI = require('openai')
+const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
+const uuid = require('uuid');
 
 dotenv.config();
 const app = express();
@@ -30,11 +34,19 @@ const transporter = nodemailer.createTransport({
         pass: 'duad frda xdke cplx'
     }
 });
+const secretKey = process.env.JWT_SECRET; // Ensure this is set in your environment variables
+
+function generateInvitationToken() {
+    return crypto.randomBytes(20).toString('hex');
+}
+// Function to generate a JWT token
+function generateToken(studentId) {
+    return jwt.sign({ studentId }, secretKey, { expiresIn: '1h' });
+}
+
 
 // Function to send invitation email
 async function sendInvitationEmail(studentEmail, invitationLink, student) {
-    console.log('@@', studentEmail);
-    console.log('@@', student);
     try {
         await transporter.sendMail({
             from: 'iamahmedfaiyaz@gmail.com',
@@ -119,16 +131,19 @@ async function sendInvitationEmail(studentEmail, invitationLink, student) {
     }
 }
 
-// Generate a unique link
 function generateUniqueLink(classroomId) {
-    // Generate a unique link based on classroom ID, timestamp, or any other criteria
-    return `http://localhost:3000/join/${classroomId}`;
+    return `https://major-rest-apis.onrender.com/join/${classroomId}`;
 }
 
-// MongoDB Models
+
+function generateInvitationLink(classroomId, studentId) {
+    const token = generateToken(studentId);
+    return `https://major-rest-apis.onrender.com/join/${classroomId}?token=${token}`;
+}
 const Student = db.Student;
 const Teacher = db.Teacher;
 const Classroom = db.Classroom;
+const Invitation = db.Invitation
 
 // // Registration endpoint for students
 // app.post('/register/student', async (req, res) => {
@@ -179,9 +194,9 @@ const Classroom = db.Classroom;
 //     }
 // });
 
-app.post('/register', async(req, res)=>{
+app.post('/register', async (req, res) => {
     try {
-        const { name, email, password, type } = req.body;
+        const { name, email, password, type, collegename, collegecode, branch, section, year } = req.body;
         if (!name || !email || !password || !type) {
             return res.status(400).json({
                 isSuccess: false,
@@ -195,7 +210,12 @@ app.post('/register', async(req, res)=>{
                 name,
                 email,
                 password: hashedPassword,
-                createdAt: new Date()
+                createdAt: new Date(),
+                collegename,
+                collegecode,
+                branch,
+                section,
+                year
             });
             result = await user.save();
             res.status(201).json({
@@ -208,7 +228,9 @@ app.post('/register', async(req, res)=>{
                 name,
                 email,
                 password: hashedPassword,
-                createdAt: new Date()
+                createdAt: new Date(),
+                collegecode,
+                collegename,
             });
             result = await user.save();
             res.status(201).json({
@@ -233,89 +255,13 @@ app.post('/register', async(req, res)=>{
 })
 
 
-// // Endpoint for student login
-// app.post('/login', async (req, res) => {
-//     try {
-//         const { email, password } = req.body;
-
-//         // Find the student by email
-//         const student = await Student.findOne({ email });
-//         if (!student) {
-//             return res.status(401).json({ message: 'Invalid email or password' });
-//         }
-
-//         // Verify the password
-//         const isPasswordValid = await bcrypt.compare(password, student.password);
-//         if (!isPasswordValid) {
-//             return res.status(401).json({ message: 'Invalid email or password' });
-//         }
-
-//         // Generate JWT token
-//         const secretKey = crypto.randomBytes(32).toString('hex');
-//         console.log(secretKey);
-//         const token = jwt.sign({ id: student._id, email: student.email }, secretKey, { expiresIn: '1h' });
-
-//         // Send the token in the response
-//         res.status(200).json({ 
-//             token,
-//             isSuccess: true,
-//             type:'teacher'
-//         });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Internal Server Error' });
-//     }
-// });
-
-// // Endpoint for teacher login
-// app.post('/teacher/login', async (req, res) => {
-//     try {
-//         const { email, password } = req.body;
-
-//         // Find the teacher by email
-//         const teacher = await Teacher.findOne({ email });
-//         if (!teacher) {
-//             return res.status(401).json({ message: 'Invalid email or password' });
-//         }
-
-//         // Verify the password
-//         const isPasswordValid = await bcrypt.compare(password, teacher.password);
-//         if (!isPasswordValid) {
-//             return res.status(401).json({ message: 'Invalid email or password' });
-//         }
-
-//         // Generate JWT token
-//         const secretKey = crypto.randomBytes(32).toString('hex');
-//         console.log(secretKey);
-//         const token = jwt.sign({ id: teacher._id, email: teacher.email }, secretKey, { expiresIn: '1h' });
-
-//         // Send the token in the response
-//         res.status(200).json({ 
-//             token,
-//             teacherid: teacher._id, 
-//             isSuccess: true,
-//             type:'teacher'
-//         });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ 
-//             message: 'Internal Server Error',
-//             isSuccess: false,
-//             type:'teacher'
-//          });
-//     }
-// });
-
-// Unified login endpoint
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         let stuuser;
         let teauser;
 
-        // Check if the user is a student
         stuuser = await Student.findOne({ email });
-        // Check if the user is a teacher
         teauser = await Teacher.findOne({ email });
 
         // If neither a student nor a teacher found, return error
@@ -351,18 +297,18 @@ app.post('/login', async (req, res) => {
         }
 
         // Send response with user type
-        res.status(200).json({ 
+        res.status(200).json({
             token,
-            userId: user._id, 
+            userId: user._id,
             isSuccess: true,
             type // Indicate the user type in the response
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Internal Server Error',
             isSuccess: false
-         });
+        });
     }
 });
 
@@ -387,7 +333,7 @@ app.post('/login/type', async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        console.log('@@user',user)
+        console.log('@@user', user)
         const secretKey = crypto.randomBytes(32).toString('hex');
         const token = jwt.sign({ id: user._id, email: user.email }, secretKey, { expiresIn: '1h' });
         let newData;
@@ -395,7 +341,7 @@ app.post('/login/type', async (req, res) => {
         if (type === 'student') {
             newData = {
                 token,
-                studentId: user._id, 
+                studentId: user._id,
                 isSuccess: true,
                 type: type,
                 message: `Login selected as ${type}`,
@@ -403,7 +349,7 @@ app.post('/login/type', async (req, res) => {
         } else if (type === 'teacher') {
             newData = {
                 token,
-                teacherId: user._id, 
+                teacherId: user._id,
                 isSuccess: true,
                 type: type,
                 message: `Login selected as ${type}`,
@@ -413,10 +359,10 @@ app.post('/login/type', async (req, res) => {
         res.status(200).json(newData); // Send the updated data to the frontend
     } catch (error) {
         console.error(error);
-        res.status(500).json({ 
+        res.status(500).json({
             message: 'Internal Server Error',
             isSuccess: false
-         });
+        });
     }
 });
 // // Endpoint for a teacher to create a classroom and invite students
@@ -447,50 +393,201 @@ app.post('/login/type', async (req, res) => {
 //         res.status(500).send('Internal Server Error');
 //     }
 // });
+
 // Endpoint for a teacher to create a classroom and generate an invitation link
-app.post('/classroom', async (req, res) => {
+// app.post('/classroom', async (req, res) => {
+//     try {
+//         // Ensure req.body.studentIds is an array or default to an empty array
+//         const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds : [];
+
+//         // Create classroom
+//         // const invitationLink = generateInvitationLink();
+//         const classroom = new Classroom({
+//             name: req.body.name,
+//             teacher: req.body.teacherId,
+//             students: studentIds,
+//             createdAt: new Date(),
+//             invitationLink,
+//         });
+//         // const result = await classroom.save();
+//         await classroom.save();
+
+//         // Generate invitation link
+//         // const invitationLink = generateUniqueLink(result._id);
+//         // Save the classroom to the database
+//         await classroom.save();
+
+//         // Extract the ID of the created classroom
+//         const classroomId = classroom._id;
+
+//         // Generate a unique invitation link with the classroom ID
+
+//         const invitationLink = generateInvitationLink(classroomId, student);
+//         console.log('@@@invi', invitationLink)
+//         // Send invitation email to each student
+//         for (const studentId of studentIds) {
+//             const student = await Student.findById(studentId);
+//             if (student) {
+//                 sendInvitationEmail(student.email, invitationLink, student);
+//             }
+//         }
+
+//         res.status(201).json({
+//             message: 'classroom created successfully',
+//             isSuccess: true
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({
+//             message: 'Internal Server Error',
+//             isSuccess: true
+//         })
+//     }
+// });
+async function dropUniqueIndex() {
     try {
-        // Ensure req.body.studentIds is an array or default to an empty array
-        const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds : [];
+        await Classroom.collection.dropIndex('invitationLink_1'); 
+        console.log('Unique index on invitationLink dropped');
+    } catch (error) {
+        if (error.codeName === 'IndexNotFound') {
+            console.log('Index not found, nothing to drop');
+        } else {
+            console.error('Error dropping index:', error);
+        }
+    }
+}
 
-        // Create classroom
-        const classroom = new Classroom({
-            name: req.body.name,
-            teacher: req.body.teacherId,
-            students: studentIds,
-            createdAt: new Date()
-        });
-        const result = await classroom.save();
+dropUniqueIndex();
 
-        // Generate invitation link
-        const invitationLink = generateUniqueLink(result._id);
+app.post('/classroom', async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-        // Send invitation email to each student
-        for (const studentId of studentIds) {
-            const student = await Student.findById(studentId);
-            if (student) {
-                sendInvitationEmail(student.email, invitationLink,student);
-            }
+    try {
+        const { name, teacherId, studentIds } = req.body;
+
+        if (!name || !teacherId || !Array.isArray(studentIds)) {
+            return res.status(400).json({ message: 'Invalid input' });
         }
 
-        res.status(201).json({ 
-            message: 'classroom created successfully',
-            isSuccess: true
-         });
+        const classroom = new Classroom({
+            name,
+            teacher: teacherId,
+            students: [],
+            createdAt: new Date()
+        });
+
+        await classroom.save({ session });
+
+        const invitationPromises = studentIds.map(async (studentId) => {
+            const token = generateInvitationToken();
+            const invitation = new Invitation({
+                classroom: classroom._id,
+                student: studentId,
+                token,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // Token expires in 24 hours
+            });
+
+            await invitation.save({ session });
+
+            const student = await Student.findById(studentId);
+            if (student) {
+                const invitationLink = `https://major-rest-apis.onrender.com/join-classroom?token=${token}`;
+                await sendInvitationEmail(student.email, invitationLink, student);
+            }
+        });
+
+        await Promise.all(invitationPromises);
+
+        await session.commitTransaction();
+        session.endSession();
+
+        res.status(201).json({
+            message: 'Classroom created and invitations sent successfully',
+            classroom
+        });
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         console.error(error);
-        res.status(500).json({ 
-            message: 'Internal Server Error',
-            isSuccess: true
-         })
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 });
 
 
-// Endpoint to get a list of all students
-app.get('/students', async (req, res) => {
+app.get('/join-classroom', async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.status(400).json({ message: 'Invalid or missing token' });
+    }
+
     try {
-        const students = await Student.find({}, 'name email');
+        // Find the invitation by token
+        const invitation = await Invitation.findOne({ token });
+
+        if (!invitation || new Date() > invitation.expiresAt) {
+            return res.status(400).json({ message: 'Invalid or expired token' });
+        }
+
+        // Add student to the classroom
+        const classroom = await Classroom.findById(invitation.classroom);
+        if (!classroom) {
+            return res.status(404).json({ message: 'Classroom not found' });
+        }
+
+        classroom.students.push(invitation.student);
+        await classroom.save();
+
+        // Delete the used invitation token
+        await Invitation.deleteOne({ _id: invitation._id });
+
+        res.status(200).json({
+            message: 'Successfully joined the classroom',
+            classroom
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+
+// Endpoint to get a list of all students
+// app.get('/students', async (req, res) => {
+//     try {
+//         const students = await Student.find({}, 'name email');
+//         res.status(200).json(students);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).send('Internal Server Error');
+//     }
+// });
+
+const authenticateTeacher = async (req, res, next) => {
+    try {
+        const { teacherId } = req.body; // Extract teacherId from the request body
+        if (!teacherId) {
+            return res.status(401).send('Unauthorized');
+        }
+        const teacher = await Teacher.findById(teacherId);
+        if (!teacher) {
+            return res.status(401).send('Unauthorized');
+        }
+        req.teacher = teacher; // Attach teacher to request
+        next();
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Internal Server Error');
+    }
+};
+
+app.post('/students', authenticateTeacher, async (req, res) => {
+    try {
+        const { collegecode } = req.teacher;
+        const students = await Student.find({ collegecode }, 'name email');
         res.status(200).json(students);
     } catch (error) {
         console.error(error);
